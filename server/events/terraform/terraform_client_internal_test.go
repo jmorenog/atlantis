@@ -127,14 +127,14 @@ func TestDefaultClient_RunCommandWithVersion_Error(t *testing.T) {
 		"exit",
 		"1",
 	}
-	out, err := client.RunCommandWithVersion(nil, tmp, args, nil, "workspace")
+	log := logging.NewSimpleLogger("test", false, logging.Debug)
+	out, err := client.RunCommandWithVersion(log, tmp, args, nil, "workspace")
 	ErrEquals(t, fmt.Sprintf(`running "echo dying && exit 1" in %q: exit status 1`, tmp), err)
 	// Test that we still get our output.
 	Equals(t, "dying\n", out)
 }
 
 func TestDefaultClient_RunCommandAsync_Success(t *testing.T) {
-	t.Skip()
 	v, err := version.NewVersion("0.11.11")
 	Ok(t, err)
 	tmp, cleanup := TempDir(t)
@@ -161,8 +161,6 @@ func TestDefaultClient_RunCommandAsync_Success(t *testing.T) {
 }
 
 func TestDefaultClient_RunCommandAsync_BigOutput(t *testing.T) {
-	// todo: figure out why larger outputs cause everything to block.
-	t.Skip()
 	v, err := version.NewVersion("0.11.11")
 	Ok(t, err)
 	tmp, cleanup := TempDir(t)
@@ -178,7 +176,7 @@ func TestDefaultClient_RunCommandAsync_BigOutput(t *testing.T) {
 
 	var exp string
 	for i := 0; i < 1024; i++ {
-		s := strings.Repeat("0", 10) + "\n"
+		s := strings.Repeat("0", 1024) + "\n"
 		exp += s
 		_, err = f.WriteString(s)
 		Ok(t, err)
@@ -191,7 +189,6 @@ func TestDefaultClient_RunCommandAsync_BigOutput(t *testing.T) {
 }
 
 func TestDefaultClient_RunCommandAsync_StderrOutput(t *testing.T) {
-	t.Skip()
 	v, err := version.NewVersion("0.11.11")
 	Ok(t, err)
 	tmp, cleanup := TempDir(t)
@@ -201,7 +198,8 @@ func TestDefaultClient_RunCommandAsync_StderrOutput(t *testing.T) {
 		terraformPluginCacheDir: tmp,
 		tfExecutableName:        "echo",
 	}
-	_, outCh := client.RunCommandAsync(nil, tmp, []string{"stderr", ">&2"}, nil, "workspace")
+	log := logging.NewSimpleLogger("test", false, logging.Debug)
+	_, outCh := client.RunCommandAsync(log, tmp, []string{"stderr", ">&2"}, nil, "workspace")
 
 	out, err := waitCh(outCh)
 	Ok(t, err)
@@ -209,7 +207,6 @@ func TestDefaultClient_RunCommandAsync_StderrOutput(t *testing.T) {
 }
 
 func TestDefaultClient_RunCommandAsync_ExitOne(t *testing.T) {
-	t.Skip()
 	v, err := version.NewVersion("0.11.11")
 	Ok(t, err)
 	tmp, cleanup := TempDir(t)
@@ -219,7 +216,8 @@ func TestDefaultClient_RunCommandAsync_ExitOne(t *testing.T) {
 		terraformPluginCacheDir: tmp,
 		tfExecutableName:        "echo",
 	}
-	_, outCh := client.RunCommandAsync(nil, tmp, []string{"dying", "&&", "exit", "1"}, nil, "workspace")
+	log := logging.NewSimpleLogger("test", false, logging.Debug)
+	_, outCh := client.RunCommandAsync(log, tmp, []string{"dying", "&&", "exit", "1"}, nil, "workspace")
 
 	out, err := waitCh(outCh)
 	ErrEquals(t, fmt.Sprintf(`running "echo dying && exit 1" in %q: exit status 1`, tmp), err)
@@ -228,7 +226,6 @@ func TestDefaultClient_RunCommandAsync_ExitOne(t *testing.T) {
 }
 
 func TestDefaultClient_RunCommandAsync_Input(t *testing.T) {
-	t.Skip()
 	v, err := version.NewVersion("0.11.11")
 	Ok(t, err)
 	tmp, cleanup := TempDir(t)
