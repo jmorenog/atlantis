@@ -17,6 +17,7 @@ package terraform
 import (
 	"bufio"
 	"fmt"
+	"github.com/hashicorp/go-getter"
 	"github.com/hashicorp/go-version"
 	"github.com/mitchellh/go-homedir"
 	"github.com/pkg/errors"
@@ -294,3 +295,9 @@ func generateRCFile(tfeToken string, home string) error {
 var rcFileContents = `credentials "app.terraform.io" {
   token = %q
 }`
+
+type DefaultDownloader struct{}
+
+func (d *DefaultDownloader) GetFile(dst, src string, opts ...getter.ClientOption) error {
+	return getter.GetFile(dst, src, opts...)
+}

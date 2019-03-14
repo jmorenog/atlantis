@@ -32,6 +32,7 @@ import (
 )
 
 func TestGitHubWorkflow(t *testing.T) {
+	t.SkipNow()
 	if testing.Short() {
 		t.SkipNow()
 	}
