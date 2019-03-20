@@ -36,7 +36,7 @@ func (c Config) Validate() error {
 	)
 }
 
-func (c Config) ToValid() valid.Config {
+func (c Config) ToValid() valid.RepoCfg {
 	var validProjects []valid.Project
 	for _, p := range c.Projects {
 		validProjects = append(validProjects, p.ToValid())
@@ -52,7 +52,7 @@ func (c Config) ToValid() valid.Config {
 		automerge = *c.Automerge
 	}
 
-	return valid.Config{
+	return valid.RepoCfg{
 		Version:   *c.Version,
 		Projects:  validProjects,
 		Workflows: validWorkflows,

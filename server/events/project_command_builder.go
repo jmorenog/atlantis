@@ -28,7 +28,7 @@ const (
 type ProjectCommandBuilder interface {
 	// BuildAutoplanCommands builds project commands that will run plan on
 	// the projects determined to be modified.
-	BuildAutoplanCommands(ctx *CommandContext) ([]models.ProjectCommandContext, error)
+	BuildAutoplanCommands(ctx *CommandContext) ([]models.ProjectCommandContext, *valid.RepoCfg, error)
 	// BuildPlanCommands builds project plan commands for this comment. If the
 	// comment doesn't specify one project then there may be multiple commands
 	// to be run.
@@ -52,6 +52,7 @@ type DefaultProjectCommandBuilder struct {
 	AllowRepoConfigFlag string
 	PendingPlanFinder   *DefaultPendingPlanFinder
 	CommentBuilder      CommentBuilder
+	GlobalCfg           valid.GlobalCfg
 }
 
 // TFCommandRunner runs Terraform commands.
@@ -96,16 +97,16 @@ func (p *DefaultProjectCommandBuilder) buildPlanAllCommands(ctx *CommandContext,
 	}
 
 	// Parse config file if it exists.
-	var config valid.Config
-	hasConfigFile, err := p.ParserValidator.HasConfigFile(repoDir)
+	var repoCfg *valid.RepoCfg
+	hasRepoCfg, err := p.ParserValidator.HasRepoCfg(repoDir)
 	if err != nil {
 		return nil, errors.Wrapf(err, "looking for %s file in %q", yaml.AtlantisYAMLFilename, repoDir)
 	}
-	if hasConfigFile {
+	if hasRepoCfg {
 		if !p.AllowRepoConfig {
 			return nil, fmt.Errorf("%s files not allowed because Atlantis is not running with --%s", yaml.AtlantisYAMLFilename, p.AllowRepoConfigFlag)
 		}
-		config, err = p.ParserValidator.ReadConfig(repoDir)
+		repoCfg, err = p.ParserValidator.ReadConfig(repoDir)
 		if err != nil {
 			return nil, err
 		}
@@ -126,19 +127,29 @@ func (p *DefaultProjectCommandBuilder) buildPlanAllCommands(ctx *CommandContext,
 
 	// If there is no config file, then we try to plan for each project that
 	// was modified in the pull request.
-	if !hasConfigFile {
+	if !hasRepoCfg {
 		modifiedProjects := p.ProjectFinder.DetermineProjects(ctx.Log, modifiedFiles, ctx.BaseRepo.FullName, repoDir)
 		ctx.Log.Info("automatically determined that there were %d projects modified in this pull request: %s", len(modifiedProjects), modifiedProjects)
 		for _, mp := range modifiedProjects {
+			// todo: constructing a PCCtx when there is no existing repo config should probably be its own method.
+			globalProjCfg := p.GlobalCfg.GetProjectCfg(ctx.BaseRepo.ID())
 			projCtxs = append(projCtxs, models.ProjectCommandContext{
-				BaseRepo:      ctx.BaseRepo,
-				HeadRepo:      ctx.HeadRepo,
-				Pull:          ctx.Pull,
-				User:          ctx.User,
-				Log:           ctx.Log,
-				RepoRelDir:    mp.Path,
-				ProjectConfig: nil,
-				GlobalConfig:  nil,
+				BaseRepo:   ctx.BaseRepo,
+				HeadRepo:   ctx.HeadRepo,
+				Pull:       ctx.Pull,
+				User:       ctx.User,
+				Log:        ctx.Log,
+				RepoRelDir: mp.Path,
+				ProjectConfig: &valid.Project{
+					Dir:               mp.Path,
+					Workspace:         DefaultWorkspace,
+					Name:              nil,
+					Workflow:          &globalProjCfg.Workflow, // todo
+					TerraformVersion:  nil,
+					Autoplan:          valid.Autoplan{}, // todo
+					ApplyRequirements: globalProjCfg.ApplyRequirements,
+				},
+				RepoCfg:       nil,
 				CommentArgs:   commentFlags,
 				Workspace:     DefaultWorkspace,
 				Verbose:       verbose,
@@ -150,7 +161,7 @@ func (p *DefaultProjectCommandBuilder) buildPlanAllCommands(ctx *CommandContext,
 	} else {
 		// Otherwise, we use the projects that match the WhenModified fields
 		// in the config file.
-		matchingProjects, err := p.ProjectFinder.DetermineProjectsViaConfig(ctx.Log, modifiedFiles, config, repoDir)
+		matchingProjects, err := p.ProjectFinder.DetermineProjectsViaConfig(ctx.Log, modifiedFiles, repoCfg, repoDir)
 		if err != nil {
 			return nil, err
 		}
@@ -170,7 +181,7 @@ func (p *DefaultProjectCommandBuilder) buildPlanAllCommands(ctx *CommandContext,
 				Workspace:     mp.Workspace,
 				RepoRelDir:    mp.Dir,
 				ProjectConfig: &mp,
-				GlobalConfig:  &config,
+				RepoCfg:       &repoCfg,
 				Verbose:       verbose,
 				RePlanCmd:     p.CommentBuilder.BuildPlanComment(mp.Dir, mp.Workspace, mp.GetName(), commentFlags),
 				ApplyCmd:      p.CommentBuilder.BuildApplyComment(mp.Dir, mp.Workspace, mp.GetName()),
@@ -320,37 +331,29 @@ func (p *DefaultProjectCommandBuilder) buildProjectCommandCtx(ctx *CommandContex
 		Workspace:     workspace,
 		RepoRelDir:    repoRelDir,
 		ProjectConfig: projCfg,
-		GlobalConfig:  globalCfg,
+		RepoCfg:       globalCfg,
 		RePlanCmd:     p.CommentBuilder.BuildPlanComment(repoRelDir, workspace, projectName, commentFlags),
 		ApplyCmd:      p.CommentBuilder.BuildApplyComment(repoRelDir, workspace, projectName),
 		PullMergeable: ctx.PullMergeable,
 	}, nil
 }
 
-func (p *DefaultProjectCommandBuilder) getCfg(projectName string, dir string, workspace string, repoDir string) (projectCfg *valid.Project, globalCfg *valid.Config, err error) {
-	hasConfigFile, err := p.ParserValidator.HasConfigFile(repoDir)
+func (p *DefaultProjectCommandBuilder) getCfg(projectName string, dir string, workspace string, repoDir string) (projectCfg *valid.Project, globalCfg *valid.RepoCfg, err error) {
+	hasConfigFile, err := p.ParserValidator.HasRepoCfg(repoDir)
 	if err != nil {
 		err = errors.Wrapf(err, "looking for %s file in %q", yaml.AtlantisYAMLFilename, repoDir)
 		return
 	}
-	if !hasConfigFile {
-		if projectName != "" {
-			err = fmt.Errorf("cannot specify a project name unless an %s file exists to configure projects", yaml.AtlantisYAMLFilename)
-			return
-		}
+	if !hasConfigFile && projectName != "" {
+		err = fmt.Errorf("cannot specify a project name unless an %s file exists to configure projects", yaml.AtlantisYAMLFilename)
 		return
 	}
 
-	if !p.AllowRepoConfig {
-		err = fmt.Errorf("%s files not allowed because Atlantis is not running with --%s", yaml.AtlantisYAMLFilename, p.AllowRepoConfigFlag)
-		return
-	}
-
-	globalCfgStruct, err := p.ParserValidator.ReadConfig(repoDir)
+	repoCfg, err := p.ParserValidator.ReadConfig(repoDir)
 	if err != nil {
 		return
 	}
-	globalCfg = &globalCfgStruct
+	globalCfg = &repoCfg
 
 	// If they've specified a project by name we look it up. Otherwise we
 	// use the dir and workspace.
@@ -377,7 +380,7 @@ func (p *DefaultProjectCommandBuilder) getCfg(projectName string, dir string, wo
 
 // validateWorkspaceAllowed returns an error if there are projects configured
 // in globalCfg for repoRelDir and none of those projects use workspace.
-func (p *DefaultProjectCommandBuilder) validateWorkspaceAllowed(globalCfg *valid.Config, repoRelDir string, workspace string) error {
+func (p *DefaultProjectCommandBuilder) validateWorkspaceAllowed(globalCfg *valid.RepoCfg, repoRelDir string, workspace string) error {
 	if globalCfg == nil {
 		return nil
 	}

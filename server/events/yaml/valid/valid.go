@@ -4,8 +4,8 @@ package valid
 
 import "github.com/hashicorp/go-version"
 
-// Config is the atlantis.yaml config after it's been parsed and validated.
-type Config struct {
+// RepoCfg is the atlantis.yaml config after it's been parsed and validated.
+type RepoCfg struct {
 	// Version is the version of the atlantis YAML file. Will always be equal
 	// to 2.
 	Version   int
@@ -14,7 +14,7 @@ type Config struct {
 	Automerge bool
 }
 
-func (c Config) GetPlanStage(workflowName string) *Stage {
+func (c RepoCfg) GetPlanStage(workflowName string) *Stage {
 	for name, flow := range c.Workflows {
 		if name == workflowName {
 			return flow.Plan
@@ -23,7 +23,7 @@ func (c Config) GetPlanStage(workflowName string) *Stage {
 	return nil
 }
 
-func (c Config) GetApplyStage(workflowName string) *Stage {
+func (c RepoCfg) GetApplyStage(workflowName string) *Stage {
 	for name, flow := range c.Workflows {
 		if name == workflowName {
 			return flow.Apply
@@ -32,7 +32,7 @@ func (c Config) GetApplyStage(workflowName string) *Stage {
 	return nil
 }
 
-func (c Config) FindProjectsByDirWorkspace(dir string, workspace string) []Project {
+func (c RepoCfg) FindProjectsByDirWorkspace(dir string, workspace string) []Project {
 	var ps []Project
 	for _, p := range c.Projects {
 		if p.Dir == dir && p.Workspace == workspace {
@@ -43,7 +43,7 @@ func (c Config) FindProjectsByDirWorkspace(dir string, workspace string) []Proje
 }
 
 // FindProjectsByDir returns all projects that are in dir.
-func (c Config) FindProjectsByDir(dir string) []Project {
+func (c RepoCfg) FindProjectsByDir(dir string) []Project {
 	var ps []Project
 	for _, p := range c.Projects {
 		if p.Dir == dir {
@@ -53,7 +53,7 @@ func (c Config) FindProjectsByDir(dir string) []Project {
 	return ps
 }
 
-func (c Config) FindProjectByName(name string) *Project {
+func (c RepoCfg) FindProjectByName(name string) *Project {
 	for _, p := range c.Projects {
 		if p.Name != nil && *p.Name == name {
 			return &p
@@ -66,7 +66,7 @@ type Project struct {
 	Dir               string
 	Workspace         string
 	Name              *string
-	Workflow          *string
+	Workflow          Workflow
 	TerraformVersion  *version.Version
 	Autoplan          Autoplan
 	ApplyRequirements []string
@@ -97,6 +97,69 @@ type Step struct {
 }
 
 type Workflow struct {
-	Apply *Stage
-	Plan  *Stage
+	Apply Stage
+	Plan  Stage
+}
+
+type GlobalCfg struct {
+	Repos     []Repo
+	Workflows map[string]Workflow
+}
+
+type Repo struct {
+	ID                   string
+	ApplyRequirements    []string
+	Workflow             *Workflow
+	AllowedOverrides     []string
+	AllowCustomWorkflows *bool
+}
+
+type GlobalProjectCfg struct {
+	ApplyRequirements    []string
+	Workflow             Workflow
+	AllowedOverrides     []string
+	AllowCustomWorkflows bool
+}
+
+func (r Repo) IDMatches(otherID string) bool {
+	return true
+}
+
+func (g GlobalCfg) GetProjectCfg(repoID string) GlobalProjectCfg {
+	var applyReqs []string
+	var workflow Workflow
+	var allowedOverrides []string
+	allowCustomWorkflows := false
+
+	for _, key := range []string{"apply_requirements", "workflow", "allowed_overrides", "allow_custom_workflows"} {
+		for _, repo := range g.Repos {
+			if repo.IDMatches(repoID) {
+				switch key {
+				case "apply_requirements":
+					if repo.ApplyRequirements != nil {
+						applyReqs = repo.ApplyRequirements
+					}
+				case "workflow":
+					if repo.Workflow != nil {
+						workflow = *repo.Workflow
+					}
+				case "allowed_overrides":
+					if repo.AllowedOverrides != nil {
+						allowedOverrides = repo.AllowedOverrides
+					}
+				case "allow_custom_workflows":
+					if repo.AllowCustomWorkflows != nil {
+						allowCustomWorkflows = *repo.AllowCustomWorkflows
+					}
+				}
+			}
+		}
+	}
+
+	return GlobalProjectCfg{
+		ApplyRequirements:    applyReqs,
+		Workflow:             workflow,
+		AllowedOverrides:     allowedOverrides,
+		AllowCustomWorkflows: allowCustomWorkflows,
+	}
 }

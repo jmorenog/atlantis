@@ -203,12 +203,12 @@ func TestConfig_ToValid(t *testing.T) {
 	cases := []struct {
 		description string
 		input       raw.Config
-		exp         valid.Config
+		exp         valid.RepoCfg
 	}{
 		{
 			description: "nothing set",
 			input:       raw.Config{Version: Int(2)},
-			exp: valid.Config{
+			exp: valid.RepoCfg{
 				Version:   2,
 				Workflows: make(map[string]valid.Workflow),
 			},
@@ -220,7 +220,7 @@ func TestConfig_ToValid(t *testing.T) {
 				Workflows: map[string]raw.Workflow{},
 				Projects:  []raw.Project{},
 			},
-			exp: valid.Config{
+			exp: valid.RepoCfg{
 				Version:   2,
 				Workflows: map[string]valid.Workflow{},
 				Projects:  nil,
@@ -231,7 +231,7 @@ func TestConfig_ToValid(t *testing.T) {
 			input: raw.Config{
 				Version: Int(2),
 			},
-			exp: valid.Config{
+			exp: valid.RepoCfg{
 				Version:   2,
 				Automerge: false,
 				Workflows: map[string]valid.Workflow{},
@@ -243,7 +243,7 @@ func TestConfig_ToValid(t *testing.T) {
 				Version:   Int(2),
 				Automerge: Bool(true),
 			},
-			exp: valid.Config{
+			exp: valid.RepoCfg{
 				Version:   2,
 				Automerge: true,
 				Workflows: map[string]valid.Workflow{},
@@ -255,7 +255,7 @@ func TestConfig_ToValid(t *testing.T) {
 				Version:   Int(2),
 				Automerge: Bool(false),
 			},
-			exp: valid.Config{
+			exp: valid.RepoCfg{
 				Version:   2,
 				Automerge: false,
 				Workflows: map[string]valid.Workflow{},
@@ -290,7 +290,7 @@ func TestConfig_ToValid(t *testing.T) {
 					},
 				},
 			},
-			exp: valid.Config{
+			exp: valid.RepoCfg{
 				Version:   2,
 				Automerge: true,
 				Workflows: map[string]valid.Workflow{

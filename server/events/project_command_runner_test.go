@@ -33,7 +33,7 @@ func TestDefaultProjectCommandRunner_Plan(t *testing.T) {
 	cases := []struct {
 		description string
 		projCfg     *valid.Project
-		globalCfg   *valid.Config
+		globalCfg   *valid.RepoCfg
 		expSteps    []string
 		expOut      string
 	}{
@@ -49,7 +49,7 @@ func TestDefaultProjectCommandRunner_Plan(t *testing.T) {
 			projCfg: &valid.Project{
 				Dir: ".",
 			},
-			globalCfg: &valid.Config{
+			globalCfg: &valid.RepoCfg{
 				Version: 2,
 				Projects: []valid.Project{
 					{
@@ -66,7 +66,7 @@ func TestDefaultProjectCommandRunner_Plan(t *testing.T) {
 				Dir:      ".",
 				Workflow: String("myworkflow"),
 			},
-			globalCfg: &valid.Config{
+			globalCfg: &valid.RepoCfg{
 				Version: 2,
 				Projects: []valid.Project{
 					{
@@ -90,7 +90,7 @@ func TestDefaultProjectCommandRunner_Plan(t *testing.T) {
 				Dir:      ".",
 				Workflow: String("myworkflow"),
 			},
-			globalCfg: &valid.Config{
+			globalCfg: &valid.RepoCfg{
 				Version: 2,
 				Projects: []valid.Project{
 					{
@@ -170,7 +170,7 @@ func TestDefaultProjectCommandRunner_Plan(t *testing.T) {
 				Log:           logging.NewNoopLogger(),
 				ProjectConfig: c.projCfg,
 				Workspace:     "default",
-				GlobalConfig:  c.globalCfg,
+				RepoCfg:       c.globalCfg,
 				RepoRelDir:    ".",
 			}
 			When(mockInit.Run(ctx, nil, repoDir)).ThenReturn("init", nil)
@@ -253,7 +253,7 @@ func TestDefaultProjectCommandRunner_Apply(t *testing.T) {
 	cases := []struct {
 		description   string
 		projCfg       *valid.Project
-		globalCfg     *valid.Config
+		globalCfg     *valid.RepoCfg
 		expSteps      []string
 		expOut        string
 		expFailure    string
@@ -272,7 +272,7 @@ func TestDefaultProjectCommandRunner_Apply(t *testing.T) {
 			projCfg: &valid.Project{
 				Dir: ".",
 			},
-			globalCfg: &valid.Config{
+			globalCfg: &valid.RepoCfg{
 				Version: 2,
 				Projects: []valid.Project{
 					{
@@ -290,7 +290,7 @@ func TestDefaultProjectCommandRunner_Apply(t *testing.T) {
 				Dir:               ".",
 				ApplyRequirements: []string{"approved"},
 			},
-			globalCfg: &valid.Config{
+			globalCfg: &valid.RepoCfg{
 				Version: 2,
 				Projects: []valid.Project{
 					{
@@ -309,7 +309,7 @@ func TestDefaultProjectCommandRunner_Apply(t *testing.T) {
 				Dir:               ".",
 				ApplyRequirements: []string{"mergeable"},
 			},
-			globalCfg: &valid.Config{
+			globalCfg: &valid.RepoCfg{
 				Version: 2,
 				Projects: []valid.Project{
 					{
@@ -328,7 +328,7 @@ func TestDefaultProjectCommandRunner_Apply(t *testing.T) {
 				Dir:               ".",
 				ApplyRequirements: []string{"mergeable"},
 			},
-			globalCfg: &valid.Config{
+			globalCfg: &valid.RepoCfg{
 				Version: 2,
 				Projects: []valid.Project{
 					{
@@ -348,7 +348,7 @@ func TestDefaultProjectCommandRunner_Apply(t *testing.T) {
 				Dir:               ".",
 				ApplyRequirements: []string{"mergeable", "approved"},
 			},
-			globalCfg: &valid.Config{
+			globalCfg: &valid.RepoCfg{
 				Version: 2,
 				Projects: []valid.Project{
 					{
@@ -367,7 +367,7 @@ func TestDefaultProjectCommandRunner_Apply(t *testing.T) {
 				Dir:      ".",
 				Workflow: String("myworkflow"),
 			},
-			globalCfg: &valid.Config{
+			globalCfg: &valid.RepoCfg{
 				Version: 2,
 				Projects: []valid.Project{
 					{
@@ -392,7 +392,7 @@ func TestDefaultProjectCommandRunner_Apply(t *testing.T) {
 				Dir:      ".",
 				Workflow: String("myworkflow"),
 			},
-			globalCfg: &valid.Config{
+			globalCfg: &valid.RepoCfg{
 				Version: 2,
 				Projects: []valid.Project{
 					{
@@ -462,7 +462,7 @@ func TestDefaultProjectCommandRunner_Apply(t *testing.T) {
 				Log:           logging.NewNoopLogger(),
 				ProjectConfig: c.projCfg,
 				Workspace:     "default",
-				GlobalConfig:  c.globalCfg,
+				RepoCfg:       c.globalCfg,
 				RepoRelDir:    ".",
 				PullMergeable: c.pullMergeable,
 			}

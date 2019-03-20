@@ -17,7 +17,7 @@ func TestReadConfig_DirDoesNotExist(t *testing.T) {
 	_, err := r.ReadConfig("/not/exist")
 	Assert(t, os.IsNotExist(err), "exp nil ptr")
 
-	exists, err := r.HasConfigFile("/not/exist")
+	exists, err := r.HasRepoCfg("/not/exist")
 	Ok(t, err)
 	Equals(t, false, exists)
 }
@@ -30,7 +30,7 @@ func TestReadConfig_FileDoesNotExist(t *testing.T) {
 	_, err := r.ReadConfig(tmpDir)
 	Assert(t, os.IsNotExist(err), "exp nil ptr")
 
-	exists, err := r.HasConfigFile(tmpDir)
+	exists, err := r.HasRepoCfg(tmpDir)
 	Ok(t, err)
 	Equals(t, false, exists)
 }
@@ -86,7 +86,7 @@ func TestReadConfig(t *testing.T) {
 		description string
 		input       string
 		expErr      string
-		exp         valid.Config
+		exp         valid.RepoCfg
 	}{
 		// Version key.
 		{
@@ -122,7 +122,7 @@ projects:
 			input: `
 version: 2
 projects:`,
-			exp: valid.Config{
+			exp: valid.RepoCfg{
 				Version:   2,
 				Projects:  nil,
 				Workflows: map[string]valid.Workflow{},
@@ -142,7 +142,7 @@ projects:
 version: 2
 projects:
 - dir: .`,
-			exp: valid.Config{
+			exp: valid.RepoCfg{
 				Version: 2,
 				Projects: []valid.Project{
 					{
@@ -172,7 +172,7 @@ projects:
   workflow: myworkflow
 workflows:
   myworkflow: ~`,
-			exp: valid.Config{
+			exp: valid.RepoCfg{
 				Version: 2,
 				Projects: []valid.Project{
 					{
@@ -206,7 +206,7 @@ projects:
     enabled: false
 workflows:
   myworkflow: ~`,
-			exp: valid.Config{
+			exp: valid.RepoCfg{
 				Version: 2,
 				Projects: []valid.Project{
 					{
@@ -240,7 +240,7 @@ projects:
     enabled: false
 workflows:
   myworkflow: ~`,
-			exp: valid.Config{
+			exp: valid.RepoCfg{
 				Version: 2,
 				Projects: []valid.Project{
 					{
@@ -274,7 +274,7 @@ projects:
     enabled: false
 workflows:
   myworkflow: ~`,
-			exp: valid.Config{
+			exp: valid.RepoCfg{
 				Version: 2,
 				Projects: []valid.Project{
 					{
@@ -385,7 +385,7 @@ projects:
 - name: myname2
   dir: .
   workspace: workspace`,
-			exp: valid.Config{
+			exp: valid.RepoCfg{
 				Version: 2,
 				Projects: []valid.Project{
 					{
@@ -448,7 +448,7 @@ func TestReadConfig_Successes(t *testing.T) {
 	cases := []struct {
 		description string
 		input       string
-		expOutput   valid.Config
+		expOutput   valid.RepoCfg
 	}{
 		{
 			description: "uses project defaults",
@@ -456,7 +456,7 @@ func TestReadConfig_Successes(t *testing.T) {
 version: 2
 projects:
 - dir: "."`,
-			expOutput: valid.Config{
+			expOutput: valid.RepoCfg{
 				Version:   2,
 				Projects:  basicProjects,
 				Workflows: make(map[string]valid.Workflow),
@@ -471,7 +471,7 @@ projects:
   autoplan:
     when_modified: ["**/*.tf*"]
 `,
-			expOutput: valid.Config{
+			expOutput: valid.RepoCfg{
 				Version:   2,
 				Projects:  basicProjects,
 				Workflows: make(map[string]valid.Workflow),
@@ -484,7 +484,7 @@ version: 2
 projects:
 - dir: "."
 `,
-			expOutput: valid.Config{
+			expOutput: valid.RepoCfg{
 				Version:   2,
 				Projects:  basicProjects,
 				Workflows: make(map[string]valid.Workflow),
@@ -498,7 +498,7 @@ projects:
 - dir: "."
 workflows: ~
 `,
-			expOutput: valid.Config{
+			expOutput: valid.RepoCfg{
 				Version:   2,
 				Projects:  basicProjects,
 				Workflows: make(map[string]valid.Workflow),
@@ -517,7 +517,7 @@ workflows:
     apply:
       steps:
 `,
-			expOutput: valid.Config{
+			expOutput: valid.RepoCfg{
 				Version:  2,
 				Projects: basicProjects,
 				Workflows: map[string]valid.Workflow{
@@ -549,7 +549,7 @@ workflows:
       - plan # we don't validate if they make sense
       - apply
 `,
-			expOutput: valid.Config{
+			expOutput: valid.RepoCfg{
 				Version:  2,
 				Projects: basicProjects,
 				Workflows: map[string]valid.Workflow{
@@ -601,7 +601,7 @@ workflows:
       - apply:
           extra_args: ["a", "b"]
 `,
-			expOutput: valid.Config{
+			expOutput: valid.RepoCfg{
 				Version:  2,
 				Projects: basicProjects,
 				Workflows: map[string]valid.Workflow{
@@ -649,7 +649,7 @@ workflows:
       steps:
       - run: echo apply "arg 2"
 `,
-			expOutput: valid.Config{
+			expOutput: valid.RepoCfg{
 				Version:  2,
 				Projects: basicProjects,
 				Workflows: map[string]valid.Workflow{

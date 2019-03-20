@@ -21,6 +21,7 @@ import (
 	"github.com/runatlantis/atlantis/server/events/db"
 	"github.com/runatlantis/atlantis/server/events/models"
 	"github.com/runatlantis/atlantis/server/events/vcs"
+	"github.com/runatlantis/atlantis/server/events/yaml/valid"
 	"github.com/runatlantis/atlantis/server/logging"
 	"github.com/runatlantis/atlantis/server/recovery"
 )
@@ -96,7 +97,7 @@ func (c *DefaultCommandRunner) RunAutoplanCommand(baseRepo models.Repo, headRepo
 		ctx.Log.Warn("unable to update commit status: %s", err)
 	}
 
-	projectCmds, err := c.ProjectCommandBuilder.BuildAutoplanCommands(ctx)
+	projectCmds, repoCfg, err := c.ProjectCommandBuilder.BuildAutoplanCommands(ctx)
 	if err != nil {
 		if statusErr := c.CommitStatusUpdater.UpdateCombined(ctx.BaseRepo, ctx.Pull, models.FailedCommitStatus, models.PlanCommand); statusErr != nil {
 			ctx.Log.Warn("unable to update commit status: %s", statusErr)
@@ -117,7 +118,7 @@ func (c *DefaultCommandRunner) RunAutoplanCommand(baseRepo models.Repo, headRepo
 	}
 
 	result := c.runProjectCmds(projectCmds, models.PlanCommand)
-	if c.automergeEnabled(ctx, projectCmds) && result.HasErrors() {
+	if c.automergeEnabled(repoCfg) && result.HasErrors() {
 		ctx.Log.Info("deleting plans because there were errors and automerge requires all plans succeed")
 		c.deletePlans(ctx)
 		result.PlansDeleted = true
@@ -199,11 +200,12 @@ func (c *DefaultCommandRunner) RunCommentCommand(baseRepo models.Repo, maybeHead
 	}
 
 	var projectCmds []models.ProjectCommandContext
+	var repoCfg *valid.RepoCfg
 	switch cmd.Name {
 	case models.PlanCommand:
-		projectCmds, err = c.ProjectCommandBuilder.BuildPlanCommands(ctx, cmd)
+		projectCmds, repoCfg, err = c.ProjectCommandBuilder.BuildPlanCommands(ctx, cmd)
 	case models.ApplyCommand:
-		projectCmds, err = c.ProjectCommandBuilder.BuildApplyCommands(ctx, cmd)
+		projectCmds, repoCfg, err = c.ProjectCommandBuilder.BuildApplyCommands(ctx, cmd)
 	default:
 		ctx.Log.Err("failed to determine desired command, neither plan nor apply")
 		return
@@ -217,7 +219,7 @@ func (c *DefaultCommandRunner) RunCommentCommand(baseRepo models.Repo, maybeHead
 	}
 
 	result := c.runProjectCmds(projectCmds, cmd.Name)
-	if cmd.Name == models.PlanCommand && c.automergeEnabled(ctx, projectCmds) && result.HasErrors() {
+	if cmd.Name == models.PlanCommand && c.automergeEnabled(repoCfg) && result.HasErrors() {
 		ctx.Log.Info("deleting plans because there were errors and automerge requires all plans succeed")
 		c.deletePlans(ctx)
 		result.PlansDeleted = true
@@ -235,7 +237,7 @@ func (c *DefaultCommandRunner) RunCommentCommand(baseRepo models.Repo, maybeHead
 
 	c.updateCommitStatus(ctx, cmd.Name, pullStatus)
 
-	if cmd.Name == models.ApplyCommand && c.automergeEnabled(ctx, projectCmds) {
+	if cmd.Name == models.ApplyCommand && c.automergeEnabled(repoCfg) {
 		c.automerge(ctx, pullStatus)
 	}
 }
@@ -424,11 +426,9 @@ func (c *DefaultCommandRunner) updateDB(ctx *CommandContext, pull models.PullReq
 }
 
 // automergeEnabled returns true if automerging is enabled in this context.
-func (c *DefaultCommandRunner) automergeEnabled(ctx *CommandContext, projectCmds []models.ProjectCommandContext) bool {
+func (c *DefaultCommandRunner) automergeEnabled(repoCfg *valid.RepoCfg) bool {
 	// If the global automerge is set, we always automerge.
-	return c.GlobalAutomerge ||
-		// Otherwise we check if this repo is configured for automerging.
-		(len(projectCmds) > 0 && projectCmds[0].GlobalConfig != nil && projectCmds[0].GlobalConfig.Automerge)
+	return c.GlobalAutomerge || (repoCfg != nil && repoCfg.Automerge)
 }
 
 // automergeComment is the comment that gets posted when Atlantis automatically

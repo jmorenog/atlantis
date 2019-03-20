@@ -31,7 +31,7 @@ type ProjectFinder interface {
 	// DetermineProjects returns the list of projects that were modified based on
 	// the modifiedFiles. The list will be de-duplicated.
 	DetermineProjects(log *logging.SimpleLogger, modifiedFiles []string, repoFullName string, repoDir string) []models.Project
-	DetermineProjectsViaConfig(log *logging.SimpleLogger, modifiedFiles []string, config valid.Config, repoDir string) ([]valid.Project, error)
+	DetermineProjectsViaConfig(log *logging.SimpleLogger, modifiedFiles []string, config valid.RepoCfg, repoDir string) ([]valid.Project, error)
 }
 
 // DefaultProjectFinder implements ProjectFinder.
@@ -78,7 +78,7 @@ func (p *DefaultProjectFinder) DetermineProjects(log *logging.SimpleLogger, modi
 // based on the modifiedFiles and config. We look at the WhenModified section
 // of the config for each project and see if the modifiedFiles matches.
 // The list will be de-duplicated.
-func (p *DefaultProjectFinder) DetermineProjectsViaConfig(log *logging.SimpleLogger, modifiedFiles []string, config valid.Config, repoDir string) ([]valid.Project, error) {
+func (p *DefaultProjectFinder) DetermineProjectsViaConfig(log *logging.SimpleLogger, modifiedFiles []string, config valid.RepoCfg, repoDir string) ([]valid.Project, error) {
 	var projects []valid.Project
 	for _, project := range config.Projects {
 		log.Debug("checking if project at dir %q workspace %q was modified", project.Dir, project.Workspace)

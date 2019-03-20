@@ -150,15 +150,7 @@ func (p *DefaultProjectCommandRunner) doPlan(ctx models.ProjectCommandContext) (
 	}
 
 	// Use default stage unless another workflow is defined in config
-	stage := p.defaultPlanStage()
-	if ctx.ProjectConfig != nil && ctx.ProjectConfig.Workflow != nil {
-		ctx.Log.Debug("project configured to use workflow %q", *ctx.ProjectConfig.Workflow)
-		configuredStage := ctx.GlobalConfig.GetPlanStage(*ctx.ProjectConfig.Workflow)
-		if configuredStage != nil {
-			ctx.Log.Debug("project will use the configured stage for that workflow")
-			stage = *configuredStage
-		}
-	}
+	stage := ctx.ProjectConfig.Workflow.Plan
 	outputs, err := p.runSteps(stage.Steps, ctx, projAbsPath)
 	if err != nil {
 		if unlockErr := lockAttempt.UnlockFn(); unlockErr != nil {
@@ -224,8 +216,7 @@ func (p *DefaultProjectCommandRunner) doApply(ctx models.ProjectCommandContext) 
 		if p.RequireApprovalOverride {
 			applyRequirements = append(applyRequirements, raw.ApprovedApplyRequirement)
 		}
-	} else if ctx.ProjectConfig != nil {
-		// Else we use the project config if it's set.
+	} else {
 		applyRequirements = ctx.ProjectConfig.ApplyRequirements
 	}
 	for _, req := range applyRequirements {
@@ -252,13 +243,7 @@ func (p *DefaultProjectCommandRunner) doApply(ctx models.ProjectCommandContext) 
 	defer unlockFn()
 
 	// Use default stage unless another workflow is defined in config
-	stage := p.defaultApplyStage()
-	if ctx.ProjectConfig != nil && ctx.ProjectConfig.Workflow != nil {
-		configuredStage := ctx.GlobalConfig.GetApplyStage(*ctx.ProjectConfig.Workflow)
-		if configuredStage != nil {
-			stage = *configuredStage
-		}
-	}
+	stage := ctx.ProjectConfig.Workflow.Apply
 	outputs, err := p.runSteps(stage.Steps, ctx, absPath)
 	p.Webhooks.Send(ctx.Log, webhooks.ApplyResult{ // nolint: errcheck
 		Workspace: ctx.Workspace,
